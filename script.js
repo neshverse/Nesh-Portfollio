@@ -36,6 +36,31 @@ document.addEventListener('DOMContentLoaded', () => {
         currentYearEl.textContent = new Date().getFullYear();
     }
 
+    // Toast notification function
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `toast-notification ${type}`;
+        toast.innerHTML = `
+            <span class="toast-icon">${type === 'success' ? '✓' : '⚠'}</span>
+            <span class="toast-message">${message}</span>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        // Show toast
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 100);
+        
+        // Hide toast after 5 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                document.body.removeChild(toast);
+            }, 300);
+        }, 5000);
+    }
+
     const contactForm = document.getElementById('contactForm');
     if (contactForm) {
         contactForm.addEventListener('submit', function(e) {
@@ -43,69 +68,96 @@ document.addEventListener('DOMContentLoaded', () => {
             const name = this.elements.name.value;
             const email = this.elements.email.value;
             const message = this.elements.message.value;
+            
             if (!name || !email || !message) {
-                alert("Please fill in all fields.");
+                showToast("Please fill in all fields.", "error");
                 return;
             }
-            console.log("Form Submitted:", { name, email, message });
-            // Replace with actual form submission logic (e.g., Formspree, Netlify Forms, or a backend)
-            alert("Thank you! Your message has been sent. (This is a demo and does not actually send emails).");
-            this.reset();
+            
+            // Create form data for submission
+            const formData = new FormData(this);
+            
+            // Show loading state
+            const submitButton = this.querySelector('.form-submit-button');
+            const originalText = submitButton.textContent;
+            submitButton.textContent = "Sending...";
+            submitButton.disabled = true;
+            
+            // Submit to Formspree
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    showToast("Thank you! Your message has been sent successfully.");
+                    this.reset();
+                } else {
+                    throw new Error('Form submission failed');
+                }
+            })
+            .catch(error => {
+                showToast("Sorry, there was an error sending your message. Please try again later.", "error");
+            })
+            .finally(() => {
+                // Reset button state
+                submitButton.textContent = originalText;
+                submitButton.disabled = false;
+            });
         });
     }
 
-    // Canvas Floating Symbols Animation - REFINED FOR SLOW FADE & 5-SEC LIFESPAN
+    // Canvas Floating Symbols Animation - Improved with auto generation
     const canvas = document.getElementById('bg-canvas');
     if (canvas) {
-        console.log("Canvas element 'bg-canvas' found."); // DEBUG
+        console.log("Canvas element 'bg-canvas' found.");
         const ctx = canvas.getContext('2d');
         if (!ctx) {
-            console.error("Failed to get 2D context for canvas."); // DEBUG
-            return; // Stop if no context
+            console.error("Failed to get 2D context for canvas.");
+            return;
         }
-        console.log("Canvas 2D context obtained."); // DEBUG
+        console.log("Canvas 2D context obtained.");
 
         let animationFrameId;
         function resizeCanvas() { 
             canvas.width = window.innerWidth; 
             canvas.height = window.innerHeight; 
-            console.log("Canvas resized to: " + canvas.width + "x" + canvas.height); // DEBUG
+            console.log("Canvas resized to: " + canvas.width + "x" + canvas.height);
         }
         window.addEventListener('resize', resizeCanvas);
-        resizeCanvas(); // Initial resize
+        resizeCanvas();
 
         let symbols = [];
         const accentColorsRGB = [
-            '0, 127, 255',   // Electric Blue (Primary Accent for ambient)
-            '255, 0, 255',    // Magenta
-            '50, 205, 50',    // Lime Green
-            '255, 165, 0',    // Bright Orange
-            '0, 255, 255'     // Bright Cyan
+            '0, 230, 255',   // Primary accent
+            '255, 0, 255',   // Secondary accent
+            '0, 255, 170',   // Tertiary accent
         ];
         const mathSymbols = ['∫','∬','∭','∮','∑','∏','∂','∇','Δ','∈','∉','∀','∃','∴','∵','≅','≈','≠','≤','≥','⊂','⊃','⊆','⊇','∩','∪','∅','ℝ','ℚ','ℤ','ℕ','ℂ','ħ','ℏ','γ','λ','μ','ν','ξ','ο','π','ρ','σ','τ','υ','φ','χ','ψ','ω','Α','Β','Γ','Δ','Ε','Ζ','Η','Θ','Ι','Κ','Λ','Μ','Ν','Ξ','Ο','Π','Ρ','Σ','Τ','Υ','Φ','Χ','Ψ','Ω','X̄','σ²','μₓ','P(A)','P(A|B)','E[X]','Var(X)','Cov(X,Y)','H','∇²','∇J(θ)','argmin','argmax','log','ln','exp','sin','cos','tan','lim','→','↦','⇔','⇒','d/dx','ƒ(x)','||v||','det(A)','Tr(M)','diag(v)','ReLU','σ(x)','tanh(x)','softmax','0','1','e','i','∞','⊕','⊗','⊙','⊥','∥','∠','∧','∨','¬','∃!','□','◊'];
 
         function getRandomChar() { return mathSymbols[Math.floor(Math.random() * mathSymbols.length)]; }
-        function getRandomFunColorRgb() { return accentColorsRGB[Math.floor(Math.random() * (accentColorsRGB.length - 1)) + 1]; }
-        function getPrimaryColorRgb() { return accentColorsRGB[0]; }
+        function getRandomColorRgb() { return accentColorsRGB[Math.floor(Math.random() * accentColorsRGB.length)]; }
 
-        const PARTICLE_LIFESPAN_FRAMES_MIN = 280; // Approx 4.6 seconds at 60fps
-        const PARTICLE_LIFESPAN_FRAMES_VAR = 40;  // Variation
+        const PARTICLE_LIFESPAN = 300; // 5 seconds at 60fps
 
         function createSymbol(isBurst = false, clickX, clickY) {
-            const life = PARTICLE_LIFESPAN_FRAMES_MIN + Math.random() * PARTICLE_LIFESPAN_FRAMES_VAR;
+            const life = PARTICLE_LIFESPAN;
             let initialOpacity, colorRgb, size, speedX, speedY, rotation;
 
             if (isBurst) {
-                initialOpacity = 0.55 + Math.random() * 0.2;
-                colorRgb = getRandomFunColorRgb();
+                initialOpacity = 0.7 + Math.random() * 0.2;
+                colorRgb = getRandomColorRgb();
                 size = (Math.random() < 0.6 ? Math.random() * 4 + 6 : Math.random() * 5 + 10);
                 speedX = (Math.random() - 0.5) * 0.8;
                 speedY = (Math.random() - 0.5) * 0.8;
                 rotation = (Math.random() - 0.5) * 0.005; 
             } else { // Ambient particle
-                initialOpacity = 0.06 + Math.random() * 0.08;
-                colorRgb = getPrimaryColorRgb();
-                size = (Math.random() < 0.9 ? Math.random() * 1.5 + 2 : Math.random() * 2.5 + 4);
+                initialOpacity = 0.1 + Math.random() * 0.1;
+                colorRgb = getRandomColorRgb();
+                size = (Math.random() < 0.9 ? Math.random() * 2 + 3 : Math.random() * 3 + 5);
                 speedX = (Math.random() - 0.5) * 0.06;
                 speedY = (Math.random() * -0.05) - 0.005;
                 rotation = (Math.random() - 0.5) * 0.002;
@@ -139,29 +191,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         // Initial population
-        console.log("Populating initial ambient particles. Target: " + targetAmbientParticles); // DEBUG
+        console.log("Populating initial ambient particles. Target: " + targetAmbientParticles);
         for(let i = 0; i < targetAmbientParticles; i++) {
             createSymbol(false);
         }
-        console.log("Initial symbols count: " + symbols.length); // DEBUG
-
+        console.log("Initial symbols count: " + symbols.length);
 
         window.addEventListener('resize', () => {
-            // resizeCanvas() is already called by its own listener
             targetAmbientParticles = Math.max(12, Math.min(40, Math.floor(canvas.width * canvas.height * targetParticleDensity)));
-            // maintainAmbientParticles(); // Let the animation loop handle maintenance
         });
 
-        document.body.addEventListener('click', (event) => {
-            if (event.target.closest('a, button, input, textarea, .menu-toggle, label')) {
-                return;
+        // Auto-generate symbols every 5 seconds
+        setInterval(() => {
+            const count = 3 + Math.floor(Math.random() * 3);
+            for (let i = 0; i < count; i++) {
+                createSymbol(true, Math.random() * canvas.width, Math.random() * canvas.height);
             }
-            const burstCount = 4 + Math.floor(Math.random() * 3);
-            console.log("Click burst. Count: " + burstCount); //DEBUG
-            for (let i = 0; i < burstCount; i++) {
-                createSymbol(true, event.clientX, event.clientY); 
-            }
-        });
+        }, 5000);
 
         let lastParticleMaintenanceTime = 0;
         const particleMaintenanceInterval = 100; 
@@ -173,12 +219,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 maintainAmbientParticles();
                 lastParticleMaintenanceTime = currentTime;
             }
-
-            if (symbols.length === 0 && targetAmbientParticles > 0) { // DEBUG check if symbols array is unexpectedly empty
-                // console.warn("Symbols array is empty during animation, but target is > 0. Attempting to repopulate.");
-                // maintainAmbientParticles(); // Try to repopulate if it got emptied somehow
-            }
-
 
             for (let i = 0; i < symbols.length; i++) {
                 const s = symbols[i];
@@ -193,8 +233,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctx.font = `bold ${s.size}px var(--font-mono, 'Courier New', monospace)`;
 
                 ctx.fillStyle = `rgba(${s.colorRgb}, ${s.opacity})`;
-                ctx.shadowColor = `rgba(${s.colorRgb}, ${s.opacity * 0.25})`;
-                ctx.shadowBlur = s.size / 4;
+                ctx.shadowColor = `rgba(${s.colorRgb}, ${s.opacity * 0.15})`;
+                ctx.shadowBlur = s.size / 6;
                 ctx.fillText(s.char, -ctx.measureText(s.char).width / 2, s.size / 3);
                 ctx.restore();
 
@@ -202,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 s.y += s.speedY;
                 s.life--;
 
-                if (s.life <= 0 || s.opacity <= 0) { // Simplified removal condition
+                if (s.life <= 0 || s.opacity <= 0) {
                     symbols.splice(i, 1);
                     i--;
                 }
@@ -210,11 +250,11 @@ document.addEventListener('DOMContentLoaded', () => {
             animationFrameId = requestAnimationFrame(animateParticles);
         }
         
-        console.log("Starting particle animation."); // DEBUG
+        console.log("Starting particle animation.");
         animationFrameId = requestAnimationFrame(animateParticles);
 
     } else {
-        console.error("Canvas element with ID 'bg-canvas' NOT FOUND at the time of script execution."); // DEBUG
+        console.error("Canvas element with ID 'bg-canvas' NOT FOUND at the time of script execution.");
     }
 
     // Scroll Animations (IntersectionObserver)

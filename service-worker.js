@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dinesh-portfolio-cache-v5'; // Incremented cache version for new resume asset
+const CACHE_NAME = 'dinesh-portfolio-cache-v6';
 const urlsToCache = [
     '/',
     '/index.html',
@@ -7,8 +7,6 @@ const urlsToCache = [
     '/manifest.json',
     '/images/icon-192x192.png',
     '/images/icon-512x512.png',
-    // Add your resume PDF to the cache if you want it to be available offline
-    // Make sure the path is correct!
     '/resume/Dinesh_Krishnamoorthy_Resume.pdf'
 ];
 
@@ -19,12 +17,8 @@ self.addEventListener('install', event => {
                 console.log('SW Install: Opened cache:', CACHE_NAME);
                 const criticalAssetRequests = urlsToCache.map(url => new Request(url, { cache: 'reload' }));
                 return cache.addAll(criticalAssetRequests)
-                    .catch(err => { // Catch errors from addAll specifically for individual files
+                    .catch(err => {
                         console.error('SW Install: Failed to cache one or more URLs:', err);
-                        // Attempt to cache URLs individually if addAll fails for some reason (e.g., resume not found yet)
-                        // This is a more robust fallback but makes the install event longer.
-                        // For simplicity, the primary addAll is often sufficient.
-                        // If resume is critical for offline, ensure it's present before deploying.
                     });
             })
             .catch(err => {
@@ -72,9 +66,9 @@ self.addEventListener('fetch', event => {
                 .catch(() => { 
                     return caches.match(event.request)
                         .then(cachedResponse => {
-                            return cachedResponse || caches.match('/index.html'); // Fallback to cached index.html
+                            return cachedResponse || caches.match('/index.html');
                         })
-                        .catch(() => { // If even index.html isn't cached, provide a very basic offline message
+                        .catch(() => {
                              return new Response("Network error: You are offline and the content is not cached.", { 
                                 status: 503, 
                                 statusText: "Service Unavailable",
@@ -107,8 +101,6 @@ self.addEventListener('fetch', event => {
                     }
                 ).catch(error => {
                     console.warn('SW Fetch: Failed for asset:', event.request.url, error);
-                    // For images, you could return a placeholder image from cache here
-                    // For other assets, just letting the browser handle the error is usually fine
                 });
             })
     );
