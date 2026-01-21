@@ -4,7 +4,7 @@ A personal portfolio website showcasing projects, skills, and experience in AI/M
 
 ## Live Demo
 
-[My Portfolio Link Here | https://neshverse.cloud/]
+[My Portfolio Link Here | https://neshverse.com/]
 
 ## Features
 
